@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 
+#include "signals.h"
+
 
 #define BUFFERSIZE 4096
 #define PROCESS_NUM 5
@@ -20,9 +22,11 @@ typedef struct {
 tcpserver_ptr setup_tcpserver(const char *addr, unsigned int port);
 void malloc_tcpserver(tcpserver_ptr *addr);
 void release_tcpserver(const tcpserver_ptr *addr);
-void launch(const tcpserver_ptr *serv_addr, bool cluster, const pid_t **pids);
-void prefork(const tcpserver_ptr *serv_addr, const pid_t **pids);
+void launch(const tcpserver_ptr *serv_addr, bool cluster);
+void prefork(const tcpserver_ptr *serv_addr);
 void connection_loop(const tcpserver_ptr *serv_addr);
 void cleanup(const tcpserver_ptr *serv_addr);
-void clean_fork(const pid_t *pids);
+void process_signal_handler();
+void handle_signal(int signo);
+void set_parent_dead_signal();
 #endif

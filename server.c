@@ -1,5 +1,4 @@
 #include "server.h"
-#include "conf.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,10 +6,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <strings.h>
+
+pid_t pids[PROCESS_NUM] = {};
 
 tcpserver_ptr setup_tcpserver(const char *addr, unsigned int port)
 {
@@ -46,22 +48,23 @@ void release_tcpserver(const tcpserver_ptr *addr)
   free(*addr);
 }
 
-void launch(const tcpserver_ptr *serv_addr, bool cluster, const pid_t **pids) {
+void launch(const tcpserver_ptr *serv_addr, bool cluster) {
   if (cluster) {
-    prefork(serv_addr, pids);
+    prefork(serv_addr);
   } else {
     connection_loop(serv_addr);
   }
+  process_signal_handler();
 }
 
-void prefork(const tcpserver_ptr *serv_addr, const pid_t **pids) {
-  pid_t *p = *pids;
-  while(!*p) {
-    if ((*p = fork()) < 0)
-      handle_error("fork child process");
-    else if (*p == 0)
+void prefork(const tcpserver_ptr *serv_addr) {
+  for (int i = 0; i < PROCESS_NUM; i++) {
+    if ((pids[i] = fork()) < 0)
+      handle_error("spawn process");
+    else if (pids[i] == 0) {
+      set_parent_dead_signal();
       connection_loop(serv_addr);
-    p++;
+    }
   }
   wait(&(int) {0});
 }
@@ -89,4 +92,49 @@ void cleanup(const tcpserver_ptr *serv_addr)
 {
   close((*serv_addr)->sockfd);
   release_tcpserver(serv_addr);
+}
+
+void handle_signal(int signo)
+{
+  const char *signal_name;
+  switch(signo) {
+    case SIGHUP:
+      signal_name = "SIGHUP";
+      break;
+    case SIGUSR1:
+      signal_name = "SIGUSR1";
+      break;
+    case SIGINT:
+      signal_name = "SIGINT";
+      break;
+    case SIGKILL:
+      signal_name = "SIGKILL";
+      break;
+    default:
+      fprintf(stderr, "Caught wrong signal: %d", signo);
+      return;
+  }
+  for (int i = 0; i < PROCESS_NUM; i++) {
+    if (pids[i]) {
+      kill(pids[i], signo);
+    }
+  }
+  printf("Sending signal...");
+  sleep(2);
+  printf("Done");
+  if (signo == SIGKILL || signo == SIGINT) exit(0);
+}
+
+void process_signal_handler()
+{
+  if (signal(SERVER_TERMINATE, handle_signal) == SIG_ERR)
+    handle_error("signal handle");
+  if (signal(SIGUSR1, handle_signal) == SIG_ERR)
+    handle_error("signal handle");
+}
+
+void set_parent_dead_signal()
+{
+  if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
+    handle_error("set deadth signal failed");
 }

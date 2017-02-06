@@ -10,16 +10,13 @@
 
 #include "http.h"
 #include "server.h"
-#include "conf.h"
 
-
-int main()
+int main(int argc, char *argv[])
 {
   printf("[蛤]>");
   printf("I'm the master process %d\n", getpid());
   tcpserver_ptr server = setup_tcpserver("127.0.0.1", 3000);
-  pid_t *pids = malloc(sizeof(pid_t) * PROCESS_SIZE);
-  launch(&server, false, &pids); // true option represent cluster mode;
+  launch(&server, true); // true option represent cluster mode;
   cleanup(&server);
   return 0;
 }

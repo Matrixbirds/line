@@ -1,3 +1,5 @@
 *.o
 *.e
 main
+*.log
+*.out
