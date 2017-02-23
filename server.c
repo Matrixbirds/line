@@ -4,13 +4,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/prctl.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <strings.h>
+#include <fcntl.h>
 
 pid_t pids[PROCESS_NUM] = {};
 
@@ -49,6 +51,7 @@ void release_tcpserver(const tcpserver_ptr *addr)
 }
 
 void launch(const tcpserver_ptr *serv_addr, bool cluster) {
+  daemon();
   if (cluster) {
     prefork(serv_addr);
   } else {
@@ -137,4 +140,17 @@ void set_parent_dead_signal()
 {
   if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
     handle_error("set deadth signal failed");
+}
+
+void daemone()
+{
+  int fd;
+  umask(0);
+  if ((fd = open("/dev/null", O_RDWR) < 0)
+    handle_error("open failed");
+  if (dup2(fd, STDIN_FILENO) < 0)
+    handle_error("dup2 STDIN failed");
+  if (dup2(fd, STDOUT_FILENO) < 0)
+    handle_error("dup2 STDOUT failed");
+  close(fd);
 }

@@ -29,4 +29,5 @@ void cleanup(const tcpserver_ptr *serv_addr);
 void process_signal_handler();
 void handle_signal(int signo);
 void set_parent_dead_signal();
+void daemon();
 #endif
